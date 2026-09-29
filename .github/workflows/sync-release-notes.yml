@@ -1,0 +1,33 @@
+name: Sync release notes
+
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md, .github/workflows/sync-release-notes.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update notes of existing releases from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | while read -r tag; do
+            version="${tag#v}"
+            awk -v v="$version" '
+              $0 ~ "^## \\[" v "\\]" { f = 1; next }
+              /^## \[/ { f = 0 }
+              f
+            ' CHANGELOG.md > notes.md
+            if [ -s notes.md ]; then
+              echo "Updating notes for $tag"
+              gh release edit "$tag" --notes-file notes.md
+            fi
+          done
