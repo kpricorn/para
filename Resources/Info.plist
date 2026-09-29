@@ -31,6 +31,6 @@
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Para — menu bar window switcher</string>
+	<string>© 2026 Sebastian de Castelberg. MIT License.</string>
 </dict>
 </plist>

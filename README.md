@@ -190,3 +190,7 @@ Sources/Para/
 ## Acknowledgements
 
 Inspired by [AltTab](https://alt-tab.app/).
+
+## License
+
+[MIT](LICENSE) © 2026 Sebastian de Castelberg
