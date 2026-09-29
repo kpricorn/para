@@ -6,6 +6,8 @@ All notable changes to Para are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-29
+
 ### Added
 
 - Optional window previews: live thumbnails of each window in the switcher
