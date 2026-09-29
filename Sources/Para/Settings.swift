@@ -52,6 +52,7 @@ enum Settings {
         static let modifiers = "shortcut.modifiers"
         static let includeMinimized = "windows.includeMinimized"
         static let includeOtherSpaces = "windows.includeOtherSpaces"
+        static let showPreviews = "windows.showPreviews"
     }
 
     static var shortcut: Shortcut {
@@ -77,6 +78,12 @@ enum Settings {
     static var includeOtherSpaces: Bool {
         get { defaults.object(forKey: Key.includeOtherSpaces) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.includeOtherSpaces) }
+    }
+
+    /// Show window thumbnails instead of just app icons (needs Screen Recording).
+    static var showPreviews: Bool {
+        get { defaults.bool(forKey: Key.showPreviews) }
+        set { defaults.set(newValue, forKey: Key.showPreviews) }
     }
 
     static func resetShortcut() {

@@ -4,6 +4,14 @@ All notable changes to Para are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Optional window previews: live thumbnails of each window in the switcher
+  (Settings → *Show window previews*; needs Screen Recording permission and
+  macOS 14 or later).
+
 ## [1.0.0] - 2026-09-29
 
 ### Added

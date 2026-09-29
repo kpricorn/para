@@ -92,12 +92,15 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let recorder = ShortcutRecorderButton()
     private let permissionLabel = NSTextField(labelWithString: "")
     private let permissionButton = NSButton()
+    private let previewsToggle = NSButton()
+    private let previewsPermissionLabel = NSTextField(labelWithString: "")
+    private let previewsPermissionButton = NSButton()
 
     init(hotKeys: HotKeyManager) {
         self.hotKeys = hotKeys
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 268),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 300),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -173,6 +176,28 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         )
         spacesToggle.state = Settings.includeOtherSpaces ? .on : .off
 
+        previewsToggle.setButtonType(.switch)
+        previewsToggle.title = "Show window previews"
+        previewsToggle.target = self
+        previewsToggle.action = #selector(togglePreviews)
+        previewsToggle.state = Settings.showPreviews ? .on : .off
+        previewsToggle.isEnabled = WindowPreviews.isSupported
+        if !WindowPreviews.isSupported { previewsToggle.title += " (macOS 14 or later)" }
+
+        previewsPermissionLabel.font = .systemFont(ofSize: 11)
+        previewsPermissionLabel.stringValue = "⚠︎ Needs Screen Recording access (relaunch Para after granting)"
+        previewsPermissionLabel.textColor = .systemOrange
+        previewsPermissionButton.bezelStyle = .rounded
+        previewsPermissionButton.controlSize = .small
+        previewsPermissionButton.title = "Open Screen Recording Settings…"
+        previewsPermissionButton.target = self
+        previewsPermissionButton.action = #selector(openScreenRecording)
+
+        let previewsPermissionRow = NSStackView(views: [previewsPermissionLabel, previewsPermissionButton])
+        previewsPermissionRow.orientation = .horizontal
+        previewsPermissionRow.spacing = 8
+        previewsPermissionRow.edgeInsets = NSEdgeInsets(top: 0, left: 20, bottom: 0, right: 0)
+
         permissionLabel.font = .systemFont(ofSize: 11)
         permissionButton.bezelStyle = .rounded
         permissionButton.target = self
@@ -190,6 +215,8 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             launchToggle,
             minimizedToggle,
             spacesToggle,
+            previewsToggle,
+            previewsPermissionRow,
             separator(),
             permissionRow,
         ])
@@ -247,6 +274,19 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         Settings.includeOtherSpaces = sender.state == .on
     }
 
+    @objc private func togglePreviews(_ sender: NSButton) {
+        Settings.showPreviews = sender.state == .on
+        if Settings.showPreviews, !WindowPreviews.hasPermission {
+            WindowPreviews.requestPermission()
+        }
+        refreshPermissionState()
+    }
+
+    @objc private func openScreenRecording() {
+        WindowPreviews.requestPermission()
+        WindowPreviews.openSettings()
+    }
+
     @objc private func openAccessibility() {
         Permissions.requestAccessibility()
         Permissions.openAccessibilitySettings()
@@ -259,6 +299,9 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             : "⚠︎ Accessibility access is required to switch windows"
         permissionLabel.textColor = trusted ? .secondaryLabelColor : .systemOrange
         permissionButton.isHidden = trusted
+
+        let needsScreenRecording = Settings.showPreviews && WindowPreviews.isSupported && !WindowPreviews.hasPermission
+        previewsPermissionLabel.superview?.isHidden = !needsScreenRecording
     }
 
     func windowDidBecomeKey(_ notification: Notification) {

@@ -48,16 +48,21 @@ final class SwitcherView: NSView {
 
     override var isFlipped: Bool { true }
 
+    /// Width of the preview area of a tile, used to size captures.
+    var previewPointWidth: CGFloat { metrics.cell.width - ItemView.previewInset * 2 }
+
     // MARK: - Content
 
-    func configure(items: [WindowInfo], maxSize: CGSize) -> CGSize {
+    func configure(items: [WindowInfo], maxSize: CGSize, previews: Bool = false) -> CGSize {
         self.items = items
-        metrics = Self.metrics(count: items.count, maxSize: maxSize)
+        metrics = Self.metrics(count: items.count, maxSize: maxSize, previews: previews)
 
         itemViews.forEach { $0.removeFromSuperview() }
         itemViews = items.map { window in
             let view = ItemView()
+            view.showsPreviewLayout = previews
             view.configure(with: window)
+            if previews { view.preview = WindowPreviews.cached(window.windowID) }
             addSubview(view)
             return view
         }
@@ -66,6 +71,12 @@ final class SwitcherView: NSView {
         layoutItems()
         updateSelection(previous: nil)
         return metrics.size
+    }
+
+    func setPreview(_ image: NSImage, for windowID: CGWindowID) {
+        for (index, item) in items.enumerated() where item.windowID == windowID {
+            itemViews[index].preview = image
+        }
     }
 
     private func layoutItems() {
@@ -95,10 +106,11 @@ final class SwitcherView: NSView {
         }
     }
 
-    static func metrics(count: Int, maxSize: CGSize) -> Metrics {
+    static func metrics(count: Int, maxSize: CGSize, previews: Bool = false) -> Metrics {
         let count = max(count, 1)
-        var cell = CGSize(width: 152, height: 162)
-        let minWidth: CGFloat = 96
+        var cell = previews ? CGSize(width: 256, height: 212) : CGSize(width: 152, height: 162)
+        let minWidth: CGFloat = previews ? 150 : 96
+        let aspect = cell.height / cell.width
 
         func fit() -> (columns: Int, rows: Int) {
             let available = max(maxSize.width - padding * 2, cell.width)
@@ -110,7 +122,7 @@ final class SwitcherView: NSView {
         var (columns, rows) = fit()
         while CGFloat(rows) * cell.height + padding * 2 > maxSize.height, cell.width > minWidth {
             cell.width -= 8
-            cell.height -= 8.5
+            cell.height = (cell.width * aspect).rounded()
             (columns, rows) = fit()
         }
 
@@ -153,6 +165,9 @@ final class SwitcherView: NSView {
 }
 
 private final class ItemView: NSView {
+    static let previewInset: CGFloat = 12
+
+    private let previewView = NSImageView()
     private let iconView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
@@ -162,11 +177,37 @@ private final class ItemView: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// Large tiles with a window thumbnail and a small app icon.
+    var showsPreviewLayout = false {
+        didSet { needsLayout = true }
+    }
+
+    var preview: NSImage? {
+        didSet {
+            previewView.image = preview
+            previewView.isHidden = preview == nil
+            needsLayout = true
+        }
+    }
+
     override var isFlipped: Bool { true }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+
+        previewView.imageScaling = .scaleProportionallyDown
+        previewView.imageAlignment = .alignCenter
+        previewView.isHidden = true
+        previewView.wantsLayer = true
+        previewView.shadow = {
+            let shadow = NSShadow()
+            shadow.shadowBlurRadius = 6
+            shadow.shadowOffset = NSSize(width: 0, height: -2)
+            shadow.shadowColor = NSColor.black.withAlphaComponent(0.5)
+            return shadow
+        }()
+        addSubview(previewView)
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
         addSubview(iconView)
@@ -206,6 +247,10 @@ private final class ItemView: NSView {
 
     override func layout() {
         super.layout()
+        showsPreviewLayout ? layoutPreview() : layoutIcon()
+    }
+
+    private func layoutIcon() {
         let inset: CGFloat = 8
         let iconSize = min(bounds.width - inset * 4, 72)
         iconView.frame = NSRect(
@@ -215,12 +260,45 @@ private final class ItemView: NSView {
             height: iconSize
         )
         badgeView.frame = NSRect(x: iconView.frame.maxX - 16, y: iconView.frame.maxY - 16, width: 16, height: 16)
-        titleLabel.frame = NSRect(
-            x: inset,
-            y: iconView.frame.maxY + 8,
-            width: bounds.width - inset * 2,
-            height: 15
-        )
+        layoutLabels(below: iconView.frame.maxY + 8)
+    }
+
+    private func layoutPreview() {
+        let inset = Self.previewInset
+        let area = NSRect(x: inset, y: inset, width: bounds.width - inset * 2, height: bounds.height - inset - 58)
+
+        if let preview, preview.size.width > 0, preview.size.height > 0 {
+            let fit = min(1, area.width / preview.size.width, area.height / preview.size.height)
+            let size = NSSize(width: preview.size.width * fit, height: preview.size.height * fit)
+            previewView.frame = NSRect(
+                x: area.midX - size.width / 2,
+                y: area.midY - size.height / 2,
+                width: size.width,
+                height: size.height
+            )
+            let iconSize: CGFloat = 36
+            iconView.frame = NSRect(
+                x: area.midX - iconSize / 2,
+                y: area.maxY - iconSize * 0.6,
+                width: iconSize,
+                height: iconSize
+            )
+        } else {
+            let iconSize = min(area.width, area.height, 72)
+            iconView.frame = NSRect(
+                x: area.midX - iconSize / 2,
+                y: area.midY - iconSize / 2,
+                width: iconSize,
+                height: iconSize
+            )
+        }
+        badgeView.frame = NSRect(x: iconView.frame.maxX - 12, y: iconView.frame.maxY - 14, width: 16, height: 16)
+        layoutLabels(below: area.maxY + 24)
+    }
+
+    private func layoutLabels(below y: CGFloat) {
+        let inset: CGFloat = 8
+        titleLabel.frame = NSRect(x: inset, y: y, width: bounds.width - inset * 2, height: 15)
         subtitleLabel.frame = NSRect(
             x: inset,
             y: titleLabel.frame.maxY + 2,

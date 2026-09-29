@@ -177,7 +177,8 @@ final class SwitcherController {
             width: screen.visibleFrame.width * 0.92,
             height: screen.visibleFrame.height * 0.86
         )
-        let size = contentView.configure(items: windows, maxSize: maxSize)
+        let previews = WindowPreviews.isActive
+        let size = contentView.configure(items: windows, maxSize: maxSize, previews: previews)
         contentView.selectedIndex = selection
 
         let origin = NSPoint(
@@ -188,6 +189,13 @@ final class SwitcherController {
         panel.orderFrontRegardless()
 
         isVisible = true
+        if previews {
+            let shown = windows.map(\.windowID)
+            WindowPreviews.capture(windows, maxPointWidth: contentView.previewPointWidth) { [weak self] id, image in
+                guard let self, self.isVisible, self.windows.map(\.windowID) == shown else { return }
+                self.contentView.setPreview(image, for: id)
+            }
+        }
         registerNavigationHotKeys()
         if !isSticky { startModifierWatcher(requiring: heldModifiers) }
     }
