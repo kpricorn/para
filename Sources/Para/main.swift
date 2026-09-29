@@ -53,6 +53,79 @@ if CommandLine.arguments.contains("--self-test") {
     app.run()
 }
 
+// Docs helper: `Para --render-screenshot <out.png>` renders the overlay with sample
+// windows offscreen (no Screen Recording permission needed) for the README.
+if let flagIndex = CommandLine.arguments.firstIndex(of: "--render-screenshot"),
+   CommandLine.arguments.indices.contains(flagIndex + 1) {
+    let output = URL(fileURLWithPath: CommandLine.arguments[flagIndex + 1])
+    let icon = NSImage(contentsOfFile: "/System/Library/CoreServices/Finder.app/Contents/Resources/Finder.icns")
+        ?? NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+    func sample(_ title: String, minimized: Bool = false, onScreen: Bool = true) -> WindowInfo {
+        WindowInfo(element: nil, windowID: 0, pid: 0, title: title, appName: "Finder",
+                   icon: icon, isMinimized: minimized, isOnScreen: onScreen)
+    }
+    let items = [
+        sample("Projekte"), sample("Downloads"), sample("Documents"),
+        sample("Applications", onScreen: false), sample("Desktop", minimized: true),
+    ]
+
+    let view = SwitcherView()
+    view.appearance = NSAppearance(named: .darkAqua)
+    let size = view.configure(items: items, maxSize: CGSize(width: 2000, height: 1000))
+    view.selectedIndex = 1
+    view.layoutSubtreeIfNeeded()
+    let host = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: .borderless,
+                        backing: .buffered, defer: false)
+    host.backgroundColor = .clear
+    host.isOpaque = false
+    host.appearance = NSAppearance(named: .darkAqua)
+    host.contentView = view
+    view.layoutSubtreeIfNeeded()
+    guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
+    view.cacheDisplay(in: view.bounds, to: rep)
+
+    let scale: CGFloat = 2
+    let canvas = CGSize(width: size.width + 160, height: size.height + 120)
+    let image = NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: Int(canvas.width * scale), pixelsHigh: Int(canvas.height * scale),
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+    )!
+    image.size = canvas
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: image)
+    NSGradient(colors: [
+        NSColor(calibratedRed: 0.20, green: 0.33, blue: 0.75, alpha: 1),
+        NSColor(calibratedRed: 0.52, green: 0.28, blue: 0.70, alpha: 1),
+    ])!.draw(in: NSRect(origin: .zero, size: canvas), angle: -35)
+
+    let card = NSRect(x: 80, y: 60, width: size.width, height: size.height)
+    let path = NSBezierPath(roundedRect: card, xRadius: 16, yRadius: 16)
+    NSGraphicsContext.saveGraphicsState()
+    let shadow = NSShadow()
+    shadow.shadowBlurRadius = 30
+    shadow.shadowOffset = NSSize(width: 0, height: -10)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.45)
+    shadow.set()
+    NSColor(srgbRed: 0.12, green: 0.12, blue: 0.14, alpha: 0.9).setFill()
+    path.fill()
+    NSGraphicsContext.restoreGraphicsState()
+    NSColor(calibratedWhite: 1, alpha: 0.12).setStroke()
+    path.lineWidth = 1
+    path.stroke()
+    rep.draw(in: card, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+    NSGraphicsContext.restoreGraphicsState()
+
+    do {
+        try image.representation(using: .png, properties: [:])!.write(to: output)
+        print("wrote \(output.path)")
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        exit(1)
+    }
+}
+
 let delegate = AppDelegate()
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
