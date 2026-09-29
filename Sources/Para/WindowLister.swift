@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 
 /// Private AX SPI used to correlate an `AXUIElement` window with its CoreGraphics
-/// window id. This is the same approach AltTab uses; there is no public equivalent.
+/// window id. There is no public equivalent.
 @_silgen_name("_AXUIElementGetWindow")
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
 

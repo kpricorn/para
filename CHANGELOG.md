@@ -10,7 +10,7 @@ All notable changes to Para are documented here. The format follows
 
 - Menu bar app that runs in the background without a Dock icon.
 - Global, configurable shortcut (default <kbd>⌘</kbd><kbd>§</kbd>) that opens an
-  AltTab-style overlay of the current app's windows.
+  overlay of the current app's windows.
 - Hold-to-cycle with commit on modifier release, <kbd>⇧</kbd> to cycle backwards,
   arrow keys, <kbd>↩</kbd>/<kbd>esc</kbd>, and mouse hover/click.
 - Options to include minimized/hidden windows and windows on other Spaces.

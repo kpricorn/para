@@ -1,9 +1,8 @@
 # Para
 
-> Para is a tiny macOS menu bar app modelled on [AltTab](https://alt-tab.app/):
-> a global shortcut opens an overlay of **all windows of the current app**, lets
-> you cycle through them, and switches to the one you pick — a visual, more
-> capable version of macOS's built-in <kbd>⌘</kbd><kbd>`</kbd>.
+> Para is a tiny macOS menu bar app: a global shortcut opens an overlay of
+> **all windows of the current app**, lets you cycle through them, and switches
+> to the one you pick — a visual, more capable version of macOS's built-in <kbd>⌘</kbd><kbd>`</kbd>.
 
 It starts in the background, shows no Dock icon, and lives entirely in the menu
 bar.
@@ -14,7 +13,7 @@ bar.
   showing each window's title.
 - **Global shortcut**, default <kbd>⌘</kbd><kbd>§</kbd> (the key above Tab on ISO
   keyboards). Fully configurable.
-- **Hold-and-cycle**, just like AltTab: keep the modifier held, tap the key to
+- **Hold-and-cycle**: keep the modifier held, tap the key to
   advance, release the modifier to switch.
 - **Reverse cycling** with <kbd>⇧</kbd> added to the shortcut.
 - **Sticky mode** when the shortcut has no modifier (or you open it from the
@@ -90,7 +89,7 @@ Developer ID signed, notarized and stapled build:
 
 Para is not distributed through the Mac App Store: App Store apps must be
 sandboxed, and sandboxed apps cannot use the Accessibility API to raise other
-apps' windows — the same reason AltTab is distributed outside the store.
+apps' windows.
 
 ## Permissions
 
@@ -173,3 +172,7 @@ Sources/Para/
   PreferencesWindow.swift      Settings window and shortcut recorder
   LaunchAtLogin.swift          SMAppService wrapper
 ```
+
+## Acknowledgements
+
+Inspired by [AltTab](https://alt-tab.app/).

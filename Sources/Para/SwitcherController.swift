@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 /// Owns the switcher lifecycle: hot key triggers, selection cycling, the overlay
-/// panel and the "release the modifier to commit" behaviour known from AltTab.
+/// panel and the "release the modifier to commit" behaviour.
 final class SwitcherController {
     private let hotKeys: HotKeyManager
 
