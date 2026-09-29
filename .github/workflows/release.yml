@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      # Optional: set these repository secrets to ship a Developer ID signed and
+      # notarized build. Without them the release is ad-hoc signed.
+      DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+      DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+      DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+      NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+      NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+      NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import Developer ID certificate
+        if: env.DEVELOPER_ID_CERT_P12 != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$DEVELOPER_ID_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$DEVELOPER_ID_CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          echo "CODESIGN_IDENTITY=$DEVELOPER_ID_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build and package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER="$GITHUB_RUN_NUMBER" \
+            UNIVERSAL=1 PACKAGE=1 ./build.sh
+
+      - name: Notarize
+        if: env.DEVELOPER_ID_CERT_P12 != '' && env.NOTARY_PASSWORD != ''
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          xcrun notarytool submit "build/Para-$VERSION.zip" \
+            --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" \
+            --password "$NOTARY_PASSWORD" --wait
+          xcrun stapler staple build/Para.app
+          rm "build/Para-$VERSION.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/Para.app "build/Para-$VERSION.zip"
+          (cd build && shasum -a 256 "Para-$VERSION.zip" > "Para-$VERSION.zip.sha256")
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="$(awk -v v="$VERSION" '
+            $0 ~ "^## \\[?"v"\\]?" { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          gh release create "$GITHUB_REF_NAME" \
+            "build/Para-$VERSION.zip" "build/Para-$VERSION.zip.sha256" \
+            --title "Para $VERSION" \
+            --notes "${NOTES:-Release $VERSION}"

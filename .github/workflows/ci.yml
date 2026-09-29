@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal app
+        run: UNIVERSAL=1 ./build.sh
+
+      - name: Smoke test
+        run: |
+          plutil -lint build/Para.app/Contents/Info.plist
+          lipo -archs build/Para.app/Contents/MacOS/Para
