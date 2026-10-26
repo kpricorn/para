@@ -77,7 +77,7 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--render-screenshot"),
     let size = view.configure(items: items, maxSize: CGSize(width: 2000, height: 1000), previews: previews)
     if previews {
         for (index, item) in items.enumerated() {
-            view.setPreview(MockWindow.render(title: item.title, seed: index), for: item.windowID)
+            view.setPreview(MockWindow.render(title: item.title, seed: index), for: item.windowID, animated: false)
         }
     }
     view.selectedIndex = 1

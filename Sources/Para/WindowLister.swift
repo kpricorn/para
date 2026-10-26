@@ -17,6 +17,8 @@ struct WindowInfo {
     let icon: NSImage?
     let isMinimized: Bool
     let isOnScreen: Bool
+    /// Window size in points, used to shape the preview placeholder before a capture exists.
+    var size: CGSize = .zero
 
     var displayTitle: String { title.isEmpty ? appName : title }
 }
@@ -88,7 +90,8 @@ enum WindowLister {
                     appName: app.localizedName ?? "Unknown",
                     icon: app.icon,
                     isMinimized: minimized,
-                    isOnScreen: visibleIndex != nil
+                    isOnScreen: visibleIndex != nil,
+                    size: sizeValue(element, kAXSizeAttribute) ?? .zero
                 )
 
                 if let visibleIndex {
@@ -136,7 +139,8 @@ enum WindowLister {
                 appName: app.localizedName ?? "Unknown",
                 icon: app.icon,
                 isMinimized: false,
-                isOnScreen: true
+                isOnScreen: true,
+                size: bounds.size
             ))
         }
 
@@ -181,6 +185,16 @@ enum WindowLister {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
         return value as? String
+    }
+
+    private static func sizeValue(_ element: AXUIElement, _ attribute: String) -> CGSize? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+        var size = CGSize.zero
+        guard AXValueGetValue(value as! AXValue, .cgSize, &size) else { return nil }
+        return size
     }
 
     private static func boolValue(_ element: AXUIElement, _ attribute: String) -> Bool {

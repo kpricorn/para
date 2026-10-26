@@ -73,9 +73,9 @@ final class SwitcherView: NSView {
         return metrics.size
     }
 
-    func setPreview(_ image: NSImage, for windowID: CGWindowID) {
+    func setPreview(_ image: NSImage, for windowID: CGWindowID, animated: Bool = true) {
         for (index, item) in items.enumerated() where item.windowID == windowID {
-            itemViews[index].preview = image
+            itemViews[index].showPreview(image, animated: animated)
         }
     }
 
@@ -168,6 +168,10 @@ private final class ItemView: NSView {
     static let previewInset: CGFloat = 12
 
     private let previewView = NSImageView()
+    /// Window-shaped stand-in shown until the first capture arrives, so the tile
+    /// layout does not jump when the screenshot appears.
+    private let placeholderView = NSView()
+    private var windowSize: CGSize = .zero
     private let iconView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
@@ -179,15 +183,41 @@ private final class ItemView: NSView {
 
     /// Large tiles with a window thumbnail and a small app icon.
     var showsPreviewLayout = false {
-        didSet { needsLayout = true }
+        didSet {
+            updatePlaceholderVisibility()
+            needsLayout = true
+        }
     }
 
     var preview: NSImage? {
         didSet {
             previewView.image = preview
             previewView.isHidden = preview == nil
+            previewView.alphaValue = 1
+            updatePlaceholderVisibility()
             needsLayout = true
         }
+    }
+
+    /// Sets the thumbnail, fading it in over the placeholder when it is the first one.
+    func showPreview(_ image: NSImage, animated: Bool) {
+        let isFirst = preview == nil
+        preview = image
+        guard animated, isFirst, showsPreviewLayout else { return }
+
+        placeholderView.isHidden = false
+        layoutSubtreeIfNeeded()
+        previewView.alphaValue = 0
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.18
+            previewView.animator().alphaValue = 1
+        }, completionHandler: { [weak self] in
+            self?.updatePlaceholderVisibility()
+        })
+    }
+
+    private func updatePlaceholderVisibility() {
+        placeholderView.isHidden = !showsPreviewLayout || preview != nil
     }
 
     override var isFlipped: Bool { true }
@@ -195,6 +225,12 @@ private final class ItemView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+
+        placeholderView.wantsLayer = true
+        placeholderView.layer?.cornerRadius = 6
+        placeholderView.layer?.borderWidth = 1
+        placeholderView.isHidden = true
+        addSubview(placeholderView)
 
         previewView.imageScaling = .scaleProportionallyDown
         previewView.imageAlignment = .alignCenter
@@ -234,6 +270,7 @@ private final class ItemView: NSView {
     required init?(coder: NSCoder) { fatalError("not supported") }
 
     func configure(with window: WindowInfo) {
+        windowSize = window.size
         iconView.image = window.icon
         // Every item belongs to the same app, so the window title is what tells them apart.
         titleLabel.stringValue = window.displayTitle
@@ -267,31 +304,33 @@ private final class ItemView: NSView {
         let inset = Self.previewInset
         let area = NSRect(x: inset, y: inset, width: bounds.width - inset * 2, height: bounds.height - inset - 58)
 
-        if let preview, preview.size.width > 0, preview.size.height > 0 {
-            let fit = min(1, area.width / preview.size.width, area.height / preview.size.height)
-            let size = NSSize(width: preview.size.width * fit, height: preview.size.height * fit)
-            previewView.frame = NSRect(
-                x: area.midX - size.width / 2,
-                y: area.midY - size.height / 2,
-                width: size.width,
-                height: size.height
-            )
-            let iconSize: CGFloat = 36
-            iconView.frame = NSRect(
-                x: area.midX - iconSize / 2,
-                y: area.maxY - iconSize * 0.6,
-                width: iconSize,
-                height: iconSize
-            )
-        } else {
-            let iconSize = min(area.width, area.height, 72)
-            iconView.frame = NSRect(
-                x: area.midX - iconSize / 2,
-                y: area.midY - iconSize / 2,
-                width: iconSize,
-                height: iconSize
-            )
+        // Until a capture exists, use the window's own size (or a typical 16:10 shape)
+        // so the placeholder occupies the same frame the screenshot will.
+        let fallback = windowSize.width > 1 && windowSize.height > 1 ? windowSize : CGSize(width: 1600, height: 1000)
+        let content = preview.flatMap { $0.size.width > 0 && $0.size.height > 0 ? $0.size : nil } ?? fallback
+        let fit = min(1, area.width / content.width, area.height / content.height)
+        let contentFrame = NSRect(
+            x: area.midX - content.width * fit / 2,
+            y: area.midY - content.height * fit / 2,
+            width: content.width * fit,
+            height: content.height * fit
+        )
+        previewView.frame = contentFrame
+        if preview == nil {
+            placeholderView.frame = contentFrame
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                placeholderView.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
+                placeholderView.layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.12).cgColor
+            }
         }
+
+        let iconSize: CGFloat = 36
+        iconView.frame = NSRect(
+            x: area.midX - iconSize / 2,
+            y: area.maxY - iconSize * 0.6,
+            width: iconSize,
+            height: iconSize
+        )
         badgeView.frame = NSRect(x: iconView.frame.maxX - 12, y: iconView.frame.maxY - 14, width: 16, height: 16)
         layoutLabels(below: area.maxY + 24)
     }

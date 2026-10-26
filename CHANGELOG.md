@@ -6,6 +6,11 @@ All notable changes to Para are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Window previews no longer jump in size when captured for the first time: a
+  window-shaped placeholder holds the layout and the thumbnail fades in.
+
 ## [1.1.0] - 2026-09-29
 
 ### Added
