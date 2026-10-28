@@ -6,6 +6,8 @@ All notable changes to Para are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-28
+
 ### Fixed
 
 - Window previews no longer jump in size when captured for the first time: a
