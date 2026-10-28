@@ -6,6 +6,8 @@ All notable changes to Para are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-28
+
 ### Added
 
 - Automatic updates: Para checks GitHub Releases daily and can install a new
