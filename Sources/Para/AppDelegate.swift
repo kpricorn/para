@@ -3,11 +3,13 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotKeys = HotKeyManager()
     private lazy var switcher = SwitcherController(hotKeys: hotKeys)
-    private lazy var preferences = PreferencesWindowController(hotKeys: hotKeys)
+    private let updater = Updater()
+    private lazy var preferences = PreferencesWindowController(hotKeys: hotKeys, updater: updater)
 
     private var statusItem: NSStatusItem?
     private var shortcutMenuItem: NSMenuItem?
     private var accessibilityMenuItem: NSMenuItem?
+    private var updateMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -23,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !Permissions.isAccessibilityTrusted {
             Permissions.requestAccessibility()
         }
+
+        updater.onChange = { [weak self] in self?.refreshUpdateMenuItem() }
+        updater.start()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
@@ -75,6 +80,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let updateItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
+        updateMenuItem = updateItem
+        refreshUpdateMenuItem()
+
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(title: "Quit Para", action: #selector(quit), keyEquivalent: "q")
@@ -92,6 +103,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         accessibilityMenuItem?.isHidden = Permissions.isAccessibilityTrusted
+        refreshUpdateMenuItem()
+    }
+
+    private func refreshUpdateMenuItem() {
+        guard let item = updateMenuItem else { return }
+        switch updater.state {
+        case .checking:
+            item.title = "Checking for Updates…"
+            item.isEnabled = false
+        case .installing:
+            item.title = "Installing Update…"
+            item.isEnabled = false
+        case .idle:
+            if let release = updater.availableRelease {
+                item.title = "Install Para \(release.version)…"
+            } else {
+                item.title = "Check for Updates…"
+            }
+            item.isEnabled = true
+        }
+        item.image = updater.availableRelease == nil ? nil : NSImage(
+            systemSymbolName: "arrow.down.circle.fill",
+            accessibilityDescription: "Update available"
+        )
     }
 
     // MARK: - Actions
@@ -107,6 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showPreferences() {
         preferences.present()
+    }
+
+    @objc private func checkForUpdates() {
+        updater.checkForUpdates()
     }
 
     @objc private func quit() {

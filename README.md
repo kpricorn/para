@@ -24,6 +24,7 @@ bar.
 - **Menu bar only** — no Dock icon, no window clutter.
 - **Launch at login** toggle.
 - Optionally include **minimized/hidden** windows and windows on **other Spaces**.
+- **Automatic updates** from GitHub Releases, verified before installing.
 - Optional **window previews**: live thumbnails of each window instead of just
   the app icon (Settings → *Show window previews*, macOS 14+).
 
@@ -78,7 +79,9 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`) whenever 
 2. Commit, then `git tag vx.y.z && git push origin main --tags`.
 
 The workflow builds a universal binary, zips it, and publishes a GitHub release
-using the matching changelog section as notes.
+using the matching changelog section as notes. The in-app updater relies on the
+release's `Para-<version>.zip` and `Para-<version>.zip.sha256` assets, so keep
+those names.
 
 **Signing and notarization (optional, recommended).** Without the secrets below
 the release is ad-hoc signed and users must bypass Gatekeeper once. With an
@@ -126,6 +129,20 @@ relaunched (menu bar icon → Quit, then open it again). Until then — or on ma
 > stops switching windows (all tiles look identical, or you get the permission
 > alert), remove Para from the Accessibility list with “−” and add it again.
 
+## Updates
+
+Para checks GitHub Releases for a newer version once a day (Settings →
+*Automatically check for updates*) and offers to install it; menu bar icon →
+**Check for Updates…** checks right away. Before replacing itself, Para verifies
+that the downloaded zip matches the release's published SHA-256 and that the
+new app carries a valid code signature for the same bundle id (and, for
+Developer ID builds, the same team). It then swaps the app bundle in place and
+relaunches, so permissions are kept.
+
+Para must be able to write to the folder it runs from (e.g. `/Applications`).
+If macOS runs it from a temporary location (App Translocation), move
+`Para.app` to `/Applications` first.
+
 ## Keyboard reference
 
 While the overlay is open:
@@ -154,6 +171,9 @@ default. Combinations already claimed by another app are rejected.
 ./build/Para.app/Contents/MacOS/Para --list-windows
 ./build/Para.app/Contents/MacOS/Para --list-windows Finder
 
+# Show the installed and latest released version
+./build/Para.app/Contents/MacOS/Para --check-for-updates
+
 # Verify the overlay renders and the shortcut can be registered
 ./build/Para.app/Contents/MacOS/Para --self-test
 ```
@@ -180,6 +200,7 @@ Sources/Para/
   SwitcherPanel.swift          Non-activating overlay panel and grid view
   WindowLister.swift           Window enumeration (AX + CoreGraphics) and raising
   WindowPreviews.swift         Window thumbnails via ScreenCaptureKit
+  Updater.swift                GitHub Releases update check, verification and install
   HotKeyManager.swift          Carbon global hot key registration
   Settings.swift               Shortcut model and UserDefaults storage
   KeyCodeNames.swift           Layout-aware key labels

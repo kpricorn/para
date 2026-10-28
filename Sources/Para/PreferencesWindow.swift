@@ -89,6 +89,7 @@ final class ShortcutRecorderButton: NSButton {
 
 final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let hotKeys: HotKeyManager
+    private let updater: Updater
     private let recorder = ShortcutRecorderButton()
     private let permissionLabel = NSTextField(labelWithString: "")
     private let permissionButton = NSButton()
@@ -96,8 +97,9 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let previewsPermissionLabel = NSTextField(labelWithString: "")
     private let previewsPermissionButton = NSButton()
 
-    init(hotKeys: HotKeyManager) {
+    init(hotKeys: HotKeyManager, updater: Updater) {
         self.hotKeys = hotKeys
+        self.updater = updater
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 460, height: 300),
@@ -208,6 +210,22 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         permissionRow.orientation = .horizontal
         permissionRow.spacing = 8
 
+        let updatesToggle = NSButton(
+            checkboxWithTitle: "Automatically check for updates",
+            target: self,
+            action: #selector(toggleAutomaticUpdates)
+        )
+        updatesToggle.state = Settings.automaticallyChecksForUpdates ? .on : .off
+        let checkNowButton = NSButton(title: "Check Now", target: self, action: #selector(checkForUpdates))
+        checkNowButton.bezelStyle = .rounded
+        checkNowButton.controlSize = .small
+        let versionLabel = NSTextField(labelWithString: "Version \(Updater.currentVersion)")
+        versionLabel.font = .systemFont(ofSize: 11)
+        versionLabel.textColor = .secondaryLabelColor
+        let updatesRow = NSStackView(views: [updatesToggle, checkNowButton, versionLabel])
+        updatesRow.orientation = .horizontal
+        updatesRow.spacing = 8
+
         let stack = NSStackView(views: [
             shortcutRow,
             hint,
@@ -217,6 +235,8 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             spacesToggle,
             previewsToggle,
             previewsPermissionRow,
+            separator(),
+            updatesRow,
             separator(),
             permissionRow,
         ])
@@ -232,6 +252,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             hint.widthAnchor.constraint(lessThanOrEqualToConstant: 400),
         ])
         return container
@@ -280,6 +301,15 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             WindowPreviews.requestPermission()
         }
         refreshPermissionState()
+    }
+
+    @objc private func toggleAutomaticUpdates(_ sender: NSButton) {
+        Settings.automaticallyChecksForUpdates = sender.state == .on
+        if sender.state == .on { updater.checkIfDue() }
+    }
+
+    @objc private func checkForUpdates() {
+        updater.checkForUpdates()
     }
 
     @objc private func openScreenRecording() {

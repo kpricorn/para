@@ -6,6 +6,13 @@ All notable changes to Para are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Automatic updates: Para checks GitHub Releases daily and can install a new
+  version in place and relaunch (menu bar → *Check for Updates…*; toggle in
+  Settings). Downloads are verified against the release's SHA-256 checksum and
+  the app's code signature before installing.
+
 ## [1.1.1] - 2026-10-28
 
 ### Fixed

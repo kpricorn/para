@@ -29,6 +29,26 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--list-windows") {
     exit(0)
 }
 
+// Debug helper: `Para --check-for-updates` prints the latest GitHub release and exits.
+if CommandLine.arguments.contains("--check-for-updates") {
+    let semaphore = DispatchSemaphore(value: 0)
+    var status: Int32 = 0
+    Task {
+        do {
+            let release = try await Updater.fetchLatestRelease()
+            let newer = Updater.isVersion(release.version, newerThan: Updater.currentVersion)
+            print("installed: \(Updater.currentVersion) latest: \(release.version) update available: \(newer)")
+            print("archive: \(release.archiveURL.absoluteString)")
+        } catch {
+            print("error: \(error.localizedDescription)")
+            status = 1
+        }
+        semaphore.signal()
+    }
+    semaphore.wait()
+    exit(status)
+}
+
 // Debug helper: `Para --self-test` renders the overlay headlessly and reports state.
 if CommandLine.arguments.contains("--self-test") {
     let app = NSApplication.shared

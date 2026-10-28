@@ -53,6 +53,9 @@ enum Settings {
         static let includeMinimized = "windows.includeMinimized"
         static let includeOtherSpaces = "windows.includeOtherSpaces"
         static let showPreviews = "windows.showPreviews"
+        static let autoCheckUpdates = "updates.automaticallyCheck"
+        static let lastUpdateCheck = "updates.lastCheck"
+        static let skippedUpdateVersion = "updates.skippedVersion"
     }
 
     static var shortcut: Shortcut {
@@ -84,6 +87,22 @@ enum Settings {
     static var showPreviews: Bool {
         get { defaults.bool(forKey: Key.showPreviews) }
         set { defaults.set(newValue, forKey: Key.showPreviews) }
+    }
+
+    static var automaticallyChecksForUpdates: Bool {
+        get { defaults.object(forKey: Key.autoCheckUpdates) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.autoCheckUpdates) }
+    }
+
+    static var lastUpdateCheck: Date? {
+        get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
+        set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
+    }
+
+    /// A release the user chose to skip; automatic checks won't offer it again.
+    static var skippedUpdateVersion: String? {
+        get { defaults.string(forKey: Key.skippedUpdateVersion) }
+        set { defaults.set(newValue, forKey: Key.skippedUpdateVersion) }
     }
 
     static func resetShortcut() {
